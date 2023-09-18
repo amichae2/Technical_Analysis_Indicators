@@ -5,6 +5,7 @@ Anyone can use this code for any purpose (hopefully friendly ones though)
 
 Currently, the indicators in this code are:
 
+-Williams VIX Fix percent change
 -Williams VIX Fix with Bollinger Bands and High and Low Range as seen on Tradingview by Chris Moody
 -The Supertrend (From https://github.com/hackingthemarkets/supertrend-crypto-bot (hackingthemarkets) crypto trading bot)
 -Beta (calculated using the percent change (instead of alpha) like Yahoo Finance and Zacks use)
