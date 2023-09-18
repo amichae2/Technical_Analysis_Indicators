@@ -46,7 +46,7 @@ class CustomIndicators:
         ohlc['Betas'] = betas
         return ohlc
 
-    # ROLLING LINEAR REGRESSION
+    # ROLLING LINEAR REGRESSION BUY SELL SIGNAL
 
     def rolling_regression_pred(self, dataframe):
         model = LinearRegression()
