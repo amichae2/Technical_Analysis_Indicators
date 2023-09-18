@@ -8,7 +8,7 @@ import pandas_ta as ta
 
 class CustomIndicators:
 
-    # WILLIAMS VIX FIX WITHOUT BB AND STD
+    # WILLIAMS VIX FIX PERCENT CHANGE WITHOUT BB AND STD
 
     def WVF(self, length, ohlc):
         wvf = ((ohlc['Close'].rolling(length).max() - ohlc['Low']) / ohlc['Close'].rolling(length).max()) * 100
