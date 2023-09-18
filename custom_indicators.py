@@ -1,9 +1,79 @@
 import math
 import pandas
 import yfinance
+import numpy as np
+from sklearn.linear_model import LinearRegression
+import pandas_ta as ta
 
 
 class CustomIndicators:
+
+    # WILLIAMS VIX FIX WITHOUT BB AND STD
+
+    def WVF(self, length, ohlc):
+        wvf = ((ohlc['Close'].rolling(length).max() - ohlc['Low']) / ohlc['Close'].rolling(length).max()) * 100
+        wvf_pc = (wvf - wvf.shift(1)) / wvf.shift(1)
+
+        ohlc['wvf'] = wvf_pc
+        return ohlc
+
+    # BETA
+
+    def beta(self, length, ohlc):
+
+        SPY_vals = yfinance.Ticker('SPY').history(period='3y', interval='1d')
+        SPY_series = pandas.Series(SPY_vals['Close'])
+
+        SPY_pc = ((SPY_series - SPY_series.shift(1)) / SPY_series.shift(1)) * 100
+        cur_pc = ((ohlc['Close'] - ohlc['Close'].shift(1)) / ohlc['Close'].shift(1)) * 100
+
+        SPY_sma = SPY_pc.rolling(length).mean()
+        cur_sma = cur_pc.rolling(length).mean()
+
+        SPY_dif = SPY_pc - SPY_sma
+        cur_dif = cur_pc - cur_sma
+
+        SPY_pow = SPY_dif * SPY_dif
+        SPY_sum = SPY_pow.rolling(length).sum()
+        SPY_var = SPY_sum / (length - 1)
+
+        col_mul = cur_dif * SPY_dif
+        co_sum = col_mul.rolling(length).sum()
+        co = co_sum / (length - 1)
+
+        betas = co / SPY_var
+
+        ohlc['Betas'] = betas
+        return ohlc
+
+    # ROLLING LINEAR REGRESSION
+
+    def rolling_regression_pred(self, dataframe):
+        model = LinearRegression()
+        y = dataframe
+        X = np.array(range(len(y))).reshape(-1, 1)
+        model.fit(X, y)
+        pred = model.predict(np.array(range(len(y))).reshape(-1, 1))[len(y) - 1]
+
+        return pred
+
+    def lin_reg(self, length, ohlc):
+        ohlc['lr_pred'] = ohlc['Close'].rolling(window=length).apply(self.rolling_regression_pred, raw=False).round(4)
+        linreg_bool = np.where(ohlc['lr_pred'] < ohlc['lr_pred'].shift(1), -1, 1)
+
+        ohlc['Lin_Bool'] = linreg_bool
+        return ohlc
+
+    # SUPPORT AND RESISTNCE
+
+    def support_and_resistance(self, length, ohlc, exp):
+
+        out = ta.ema(ohlc['Close'], length=length)
+        slp = out.diff()
+        slp = slp.abs()
+
+        ohlc['slp'] = slp
+        return ohlc
 
     # WILLIAMS VIX FIX WITH BB AND STD
 
@@ -231,80 +301,3 @@ class CustomIndicators:
                     df['upperband'][current] = df['upperband'][previous]
 
         return df
-
-    # BETA
-
-    def covariance(self, SPY_hist, hist2):
-
-        SPY_closes = SPY_hist
-        length = len(SPY_closes)
-
-        SPY_average = 0
-        for p in SPY_closes:
-            SPY_average += p
-        SPY_average = SPY_average / length
-
-        hist2_closes = hist2
-        length = len(hist2_closes)
-
-        hist2_average = 0
-        for day in hist2_closes:
-            hist2_average += day
-        hist2_average = hist2_average / length
-
-        total = 0
-        for i in range(len(SPY_hist)):
-            total += ((SPY_closes[i] - SPY_average) * (hist2_closes[i] - hist2_average))
-
-        return total / (length - 1)
-
-    def variance(self, SPY_hist):
-
-        SPY_closes = SPY_hist
-        length = len(SPY_closes)
-
-        SPY_average = 0
-        for p in SPY_closes:
-            SPY_average += p
-        SPY_average = SPY_average / length
-
-        sum = 0
-        for i in SPY_closes:
-            dif = i - SPY_average
-            sum += (dif ** 2)
-
-        return (sum / (length-1))
-
-
-    def beta(self, SPY_hist, hist2):
-
-        _covariance = self.covariance(SPY_hist=SPY_hist, hist2=hist2)
-
-        _variance = self.variance(SPY_hist=SPY_hist)
-
-        return (_covariance / _variance)
-
-    def percent_change(self, hist):
-
-        closes = hist['Close'].to_list()
-        percent_change = []
-        for i in range(len(closes)):
-            if i != 0:
-                percent_change.append(((closes[i-1] - closes[i]) / closes[i-1]) * 100)
-
-        return percent_change
-
-    def get_beta(self, securities):
-
-        SPY_hist = yfinance.Ticker('SPY').history(period='5y', interval='1mo')  # using this beta for now because it seems to be standard
-        SPY_pc = self.percent_change(hist=SPY_hist)
-        betas = {}
-
-        for security in securities:
-            security_hist = yfinance.Ticker(security).history(period='5y', interval='1mo')
-            security_pc = self.percent_change(hist=security_hist)
-            b = self.beta(SPY_hist=SPY_pc, hist2=security_pc)
-            betas[security] = b
-
-        return betas
-
